@@ -252,7 +252,7 @@ for hidx, curr_hparams in hparams_df.iterrows():
         save_learning=curr_hparams.save_learning, gpu=curr_hparams.gpu, save_sessions=False, 
         verbose=True)
 
-    curr_hparams_df = pd.DataFrame(hparams_df.iloc[0]).T
+    curr_hparams_df = pd.DataFrame(curr_hparams).T
 
     # Extract geometry results, add metadata:
     curr_geo_results = curr_results['geo_df']
