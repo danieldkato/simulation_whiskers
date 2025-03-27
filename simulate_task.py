@@ -1327,7 +1327,7 @@ def simulate_session(params, save_output=False, sum_bins=False, output_directory
         if sum_bins:
             trial_dict['features_bins_summed'] = np.sum(curr_trial_features,0)
         
-        session = session.append(trial_dict, ignore_index=True)
+        session = pd.concat([session, pd.Series(trial_dict).to_frame().T], axis=0)
         
     # Save session if requested:
     if save_output: 
