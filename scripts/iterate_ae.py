@@ -15,10 +15,19 @@ import numpy as np
 import pandas as pd
 import json
 import itertools
-from simulation_whiskers.simulate_task import load_sim_params, load_task_def
-from simulation_whiskers.miscellaneous_sparseauto import mdl_geometry_pipeline, fmt_ae_metadata, generate_hparams_df
+import socket 
+
+hostname = socket.gethostname()
+
+if 'rc.zi.columbia.edu' in hostname or hostname == 'DESKTOP-PJOJ7HT':
+    from ws.simulate_task import load_sim_params, load_task_def
+    from ws.miscellaneous_sparseauto import mdl_geometry_pipeline, fmt_ae_metadata, generate_hparams_df
+else:
+    from simulation_whiskers.simulate_task import load_sim_params, load_task_def
+    from simulation_whiskers.miscellaneous_sparseauto import mdl_geometry_pipeline, fmt_ae_metadata, generate_hparams_df
 #from simulation_whiskers.plot import plot_iterate_autoencoder_results, plot_autoencoder_geometry
-from simulation_whiskers.plot import plot_iterate_autoencoder_results, plot_ccgps_by_layer, plot_pars_by_layer
+    from simulation_whiskers.plot import plot_iterate_autoencoder_results, plot_ccgps_by_layer, plot_pars_by_layer
+    
 from analysis_metadata.analysis_metadata import Metadata, increment_dir_name, write_metadata
 import time
 
