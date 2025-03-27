@@ -256,6 +256,7 @@ for hidx, curr_hparams in hparams_df.iterrows():
 
     # Extract geometry results, add metadata:
     curr_geo_results = curr_results['geo_df']
+    curr_geo_results['train_partition'] = curr_geo_results.apply(lambda x : inspect.getsource(x.train_partition), axis=1)
     geo_meta_cols = list(set(curr_hparams_df) - set(curr_geo_results.columns))
     geo_meta = pd.concat([curr_hparams_df[geo_meta_cols]]*curr_geo_results.shape[0],axis=0)
     geo_meta.index = np.arange(geo_meta.shape[0])
