@@ -256,7 +256,7 @@ for hidx, curr_hparams in hparams_df.iterrows():
 
     # Extract geometry results, add metadata:
     curr_geo_results = curr_results['geo_df']
-    geo_meta_cols = set(curr_hparams_df) - set(curr_geo_results.columns)
+    geo_meta_cols = list(set(curr_hparams_df) - set(curr_geo_results.columns))
     geo_meta = pd.concat([curr_hparams_df[geo_meta_cols]]*curr_geo_results.shape[0],axis=0)
     geo_meta.index = np.arange(geo_meta.shape[0])
     curr_geo_results = pd.concat([curr_geo_results, geo_meta], axis=1)
@@ -264,7 +264,7 @@ for hidx, curr_hparams in hparams_df.iterrows():
     
     # Extract classifier performance results, add metadata:
     curr_perf_results = curr_results['perf_df']
-    perf_meta_cols = set(curr_hparams_df) - set(curr_perf_results.columns)
+    perf_meta_cols = list(set(curr_hparams_df) - set(curr_perf_results.columns))
     perf_meta = pd.concat([curr_hparams_df[perf_meta_cols]]*curr_perf_results.shape[0],axis=0)
     perf_meta.index = np.arange(perf_meta.shape[0])
     curr_perf_results = pd.concat([curr_perf_results, perf_meta], axis=1)
@@ -273,7 +273,7 @@ for hidx, curr_hparams in hparams_df.iterrows():
     # Extract autoencoder representations, add metadata:
     if curr_results['ae_df'] is not None:            
         curr_ae_results = curr_results['ae_df']
-        ae_meta_cols = set(curr_hparams_df) - set(curr_ae_results.columns)
+        ae_meta_cols = list(set(curr_hparams_df) - set(curr_ae_results.columns))
         ae_meta = pd.concat([curr_hparams_df[ae_meta_cols]]*curr_ae_results.shape[0],axis=0)
         curr_ae_results = pd.concat([curr_ae_results, perf_meta], axis=1)
         all_ae_results = pd.concat([all_ae_results, curr_ae_results])
