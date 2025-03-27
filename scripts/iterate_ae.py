@@ -158,7 +158,7 @@ n_predicted_bins = 4
 gpu = False
 
 # Output directory:
-if hostname == 'DESKTOP-PJOJHT':
+if hostname == 'DESKTOP-PJOJ7HT':
     base_output_directory = os.path.join('Z:\\', 'users', 'Dan', 'code', 'ws', 'results')
 else:
     base_output_directory = 'E:\\simulation_whiskers\\results\\'
