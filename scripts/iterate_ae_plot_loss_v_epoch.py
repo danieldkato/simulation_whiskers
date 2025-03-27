@@ -7,6 +7,7 @@ Created on Sun Sep  8 09:15:45 2024
 @author: danie
 """
 
+#%% Import statements, setup environment:
 import sys
 import os
 import pathlib 
@@ -15,30 +16,50 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import pickle
 import inspect
+import socket
 try:
     from analysis_metadata.analysis_metadata import Metadata, write_metadata, increment_dir_name, seconds_2_full_time_str
 except ImportError or ModuleNotFoundError:
     analysis_metdata_imported=False
 
-# Define inputs/parameters:
+hostname = socket.gethostname()
+
+if hostname == 'DESKTOP-PJOJ7HT':
+    base = os.path.join('Z:\\', 'users', 'Dan', 'code', 'ws')
+elif hostname == 'DESKTOP-1PVCRAF':
+    base = os.path.join('E:\\', 'simulation_whiskers')
+
+
+
+#%% Define inputs/parameters:
+
+    
 
 # Input parameters:
-input_path = 'E:\\simulation_whiskers\\results\\run651\\ae_iterate_beta_reconstruction.pickle'
+input_path = os.path.join(base, 'results', 'run734', 'ae_iterate_beta_reconstruction.pickle')
 
 # Define independent variable:
-loss = 'loss_rec_epochs' # 'loss_rec_epochs' | 'loss_rec_binned' | 'loss_ce_epochs' | 'loss_sp_epochs' | 'loss_epochs' | 'loss_xor_epochs'
+response_var = 'loss_pr' # 'loss_rec_epochs' | 'loss_rec_binned' | 'loss_ce_epochs' | 'loss_sp_epochs' | 'loss_epochs' | 'loss_xor_epochs'
+
+# Define grouping variables; each unique combiation of grouping variable values 
+# will correspond to a single curve:
+grouping_variables = ['beta_sp', 'beta0', 'beta1', 'beta_xor', 'beta_rec', 'n_hidden']
 
 # Define custom filter if desired:
-flt = lambda x : x.n_hidden==160 and round(x.beta_rec) == round(0)
+#flt = lambda x : x.n_hidden==160 and round(x.beta_rec) == round(0)
 #flt = lambda x : round(x.beta_sp) == 150 
-#flt = None
+flt = None
+
+# Plot options:
+title_fields = ['n_hidden', 'n_trials_pre', 'beta_rec', 'beta_pr']
+infos_per_line = 2
 
 # Output parameters:
 save_output = False
 
 
-###############################################################################
-# Preliminary stuff:
+
+#%% Preliminaries:
 
 # Load results:
 results = pickle.load(open(input_path, 'rb'))
@@ -50,42 +71,39 @@ if flt is not None:
     ae_df = ae_df[keep]
     
 
-###############################################################################
-# Generate figure:
 
-if loss == 'loss_rec_binned':
+#%% Generate figure:
+
+if response_var == 'loss_rec_binned':
     loss_terms = [x for x in ae_df.keys() if 'loss_rec' in x]
 else:
-    loss_terms = [loss]
-    
-grouping_variables = ['beta_sp', 'beta0', 'beta1', 'beta_xor', 'beta_rec', 'n_hidden']
+    loss_terms = [response_var]
 
-B = ae_df[grouping_variables + loss_terms]\
-    .groupby(grouping_variables)
 
-Mu = B.mean().reset_index()
-Mu['n_repeats'] = B.count().reset_index()[loss_terms[0]]
+# Identify different groups:
+groups_df = ae_df[grouping_variables].drop_duplicates()
 
-#L = np.array(list(ae_df[loss])) # repeats-by-training epochs
-#mu = np.mean(L, axis=0)
+# Average across runs within each group:
+mu_df = ae_df[['epoch'] + grouping_variables + [response_var]]\
+    .groupby(['epoch']+grouping_variables).mean().reset_index()
 
-# Define labels:
-Mu['log_beta_rec'] = np.round(np.log10(Mu.beta_rec), decimals=1)
-labels = Mu.apply(lambda x : 'beta0={}, beta1={}, beta_xor={}, beta_sp={}, log(beta_rec)={}, n_repeats={}'\
-         .format(x.beta0, x.beta1, x.beta_xor, x.beta_sp, x.log_beta_rec, x.n_repeats), axis=1)
-    
-# Plot:
+# Iterate over groups:
 loss_fig = plt.figure()
-for loss in loss_terms:
-    curr_labels = [loss + ', ' + x for x in labels] 
-    if len(curr_labels) == 1:
-        curr_labels = curr_labels[0]
-    plt.plot(np.array(list(Mu[loss])).T, label=curr_labels)
+for gidx, group in groups_df.iterrows():
+    
+    # Retrieve results just corresponding to current group:
+    curr_grp_results =  pd.merge(ae_df, group.to_frame().T, on=grouping_variables)
+    
+    # Generate label for current group:
+    curr_label = ', '.join(['{}={}'.format(x,group[x]) for x in group.keys()])
+    
+    # Plot:
+    plt.plot(curr_grp_results.epoch, curr_grp_results[response_var], label=curr_label)
 
 # Create title, axis labels, etc:
-if loss == 'loss_epochs':
+if response_var == 'loss':
     loss_str = 'Total_loss'
-elif loss == 'loss_rec_epochs':
+elif response_var == 'loss_rec':
     if 'model_type' in ae_df:
         if len(np.unique(ae_df.model_type)) == 1:
             if ae_df.iloc[0].model_type == 'autoencoder':
@@ -96,12 +114,14 @@ elif loss == 'loss_rec_epochs':
             loss_str = 'Reconstruction/prediction loss'
     else:
         loss_str = 'Reconstruction loss'
-elif loss == 'loss_ce_epochs':
+elif response_var == 'loss_ce':
     loss_str = 'Linear task loss'
-elif loss == 'loss_xor_epochs':
+elif response_var == 'loss_xor':
     loss_str = 'XOR loss'
-elif loss == 'loss_sp_epochs':
+elif response_var == 'loss_sp':
     loss_str = 'Sparsity loss'
+elif response_var == 'loss_pr':
+    loss_str = 'Participation ratio'
 
 
 
@@ -109,16 +129,25 @@ plt.xlabel('Training epoch')
 plt.ylabel(loss_str)
 plt.legend(frameon=False, prop={'size':6})
 
-title_str0 = '{} vs training epoch'.format(loss_str)
-title_str1 = []
-if np.ptp(ae_df.n_hidden)==0:
-    title_str1.append('n_hidden={}'.format(ae_df.iloc[0].n_hidden))
-title_str1 = ', '.join(title_str1)
-title_str = '\n'.join([title_str0, title_str1])
+title_lines = []
+title_lines.append('{} vs training epoch'.format(loss_str))
+
+title_clauses = []
+for t in title_fields:
+    if len(np.unique(ae_df[t])) == 1:
+        curr_clause = '{}={}'.format(t, ae_df.iloc[0][t])
+        title_clauses.append(curr_clause)
+title_linebreaks = np.arange(0, len(title_clauses), infos_per_line)
+title_clause_lines = [title_clauses[b:b+3] for b in title_linebreaks]
+title_info_lines = [', '.join([y for y in x]) for x in title_clause_lines]
+
+title_lines += title_info_lines
+title_str = '\n'.join(title_lines)
 plt.title(title_str)
 
-###############################################################################
-# Save output if requested:
+
+
+#%% Save output if requested:
     
 if save_output:
     
@@ -134,7 +163,7 @@ if save_output:
         pathlib.Path(curr_output_dir).mkdir(parents=True,exist_ok=True)
     
     # Save figures:
-    fname_loss = loss.lower().replace(' ', '_')
+    fname_loss = response_var.lower().replace(' ', '_')
     plt.figure(loss_fig)
     png_path = os.path.join(curr_output_dir, fname_loss+'.png')
     plt.savefig(png_path)
