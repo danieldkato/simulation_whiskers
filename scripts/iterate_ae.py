@@ -98,7 +98,7 @@ task_defs = [
 
 
 # Define general variables:
-n_files = 8
+n_files = 1
 n_geo_subsamples = 1
 sum_inpt=False
 xor=True
@@ -158,7 +158,10 @@ n_predicted_bins = 4
 gpu = False
 
 # Output directory:
-base_output_directory='E:\\simulation_whiskers\\results\\'
+if hostname == 'DESKTOP-PJOJHT':
+    base_output_directory = os.path.join('Z:\\', 'users', 'Dan', 'code', 'ws', 'results')
+else:
+    base_output_directory = 'E:\\simulation_whiskers\\results\\'
 run_base_name='run'
 sv=False
   
