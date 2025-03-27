@@ -137,18 +137,18 @@ init_position = 0
 
 # Autoencoder parameters:
 mdl_type = "autoencoder"
-n_hidden = 20
+n_hidden = 80
 sig_init = 1 
 sig_neu = 0.1 
 lr = 0.001
 beta0 = 0
 beta1 = 0
-beta_rec = 0
+beta_rec = 0.5
 beta_xor = 0
-n_epochs = 50
+n_epochs = 200
 batch_size = 10
 beta_sp = 0
-beta_pr = 0
+beta_pr = 0.5
 p_norm = 2
 n_splits = 5
 n_predictor_bins = 10
@@ -289,7 +289,8 @@ for hidx, curr_hparams in hparams_df.iterrows():
         curr_ae_results = curr_results['ae_df']
         ae_meta_cols = list(set(curr_hparams_df) - set(curr_ae_results.columns))
         ae_meta = pd.concat([curr_hparams_df[ae_meta_cols]]*curr_ae_results.shape[0],axis=0)
-        curr_ae_results = pd.concat([curr_ae_results, perf_meta], axis=1)
+        ae_meta.index = np.arange(ae_meta.shape[0])
+        curr_ae_results = pd.concat([curr_ae_results, ae_meta], axis=1)
         all_ae_results = pd.concat([all_ae_results, curr_ae_results])
 
 all_results = dict()
