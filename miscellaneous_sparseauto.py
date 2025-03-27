@@ -34,7 +34,7 @@ import socket
 
 hostname = socket.gethostname()
 
-if 'rc.zi.columbia.edu' in hostname:
+if 'rc.zi.columbia.edu' in hostname or hostname == 'DESKTOP-PJOJ7HT':
     from ws.simulate_task import simulate_session, session2feature_array, session2labels, load_simulation, binarize_contacts
     from ws.functions_geometry import geometry_2D, perf_2D, find_matching_2d_bin_trials, subsample_2d_bin, participation_ratio
 else:
