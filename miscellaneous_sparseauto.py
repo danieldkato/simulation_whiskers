@@ -36,7 +36,7 @@ hostname = socket.gethostname()
 
 if 'rc.zi.columbia.edu' in hostname:
     from ws.simulate_task import simulate_session, session2feature_array, session2labels, load_simulation, binarize_contacts
-    from ws.functions_geometry import geometry_2D, perf_2D, find_matching_2d_bin_trials, subsample_2d_bin, participation_rat
+    from ws.functions_geometry import geometry_2D, perf_2D, find_matching_2d_bin_trials, subsample_2d_bin, participation_ratio
 else:
     from simulation_whiskers.simulate_task import simulate_session, session2feature_array, session2labels, load_simulation, binarize_contacts
     from simulation_whiskers.functions_geometry import geometry_2D, perf_2D, find_matching_2d_bin_trials, subsample_2d_bin, participation_ratio
