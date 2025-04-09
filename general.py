@@ -812,6 +812,16 @@ def proj_code_plane(X, base_labels, proj_labels, classifier='LogisticRegression'
 
 
 
+
+
+def matches_template(d, template):
+    
+    b = np.all([d[key] == template[key] for key in template.keys()])
+    
+    return b
+
+
+
 def find_df_constants(df):
     
     constants = dict()

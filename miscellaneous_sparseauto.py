@@ -1451,9 +1451,5 @@ def sparsity_loss(data,p):
 
 
 
-def matches_template(d, template):
-    
-    b = np.all([d[key] == template[key] for key in template.keys()])
-    
-    return b
+
 
