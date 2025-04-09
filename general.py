@@ -10,7 +10,6 @@ import pathlib
 import pickle as pkl
 import numpy as np
 from numpy import matlib
-from simulation_whiskers.simulate_task import simulate_session, session2feature_array, session2labels
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
@@ -24,7 +23,13 @@ try:
     from analysis_metadata.analysis_metadata import Metadata, write_metadata
 except ImportError or ModuleNotFoundError:
     analysis_metdata_imported=False
-    
+
+import socket
+hostname = socket.gethostname()
+if 'rc.zi.columbia.edu' in hostname:
+    from ws.simulate_task import simulate_session, session2feature_array, session2labels
+else:
+    from simulation_whiskers.simulate_task import simulate_session, session2feature_array, session2labels
 
 
 def pca_trials(sim_params, n=None, sum_bins=False, omit_angle=False, center=True, plot=True, scale=False, face_task=None, edge_task=None, face_cmap='cool', edge_cmap='binary', alpha=0.4, size=5.0, jitter=0.1, linewidth=1.0, save=True, output_directory=None):
