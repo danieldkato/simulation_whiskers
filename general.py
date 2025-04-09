@@ -19,11 +19,13 @@ from sklearn.linear_model import LogisticRegression
 import pandas as pd
 import seaborn as sns
 from scipy.stats import zscore
+import inspect
+import re
 try:
     from analysis_metadata.analysis_metadata import Metadata, write_metadata
 except ImportError or ModuleNotFoundError:
     analysis_metdata_imported=False
-
+import functools
 import socket
 hostname = socket.gethostname()
 if 'rc.zi.columbia.edu' in hostname:
@@ -819,6 +821,49 @@ def matches_template(d, template):
     b = np.all([d[key] == template[key] for key in template.keys()])
     
     return b
+
+
+
+def class_def2str(class_def):
+    
+    if str(type(class_def)) == "<class 'function'>":
+        class_def_str = crop_str(inspect.getsource(class_def))
+    elif type(class_def) == functools.partial:
+        class_def_str = str(class_def)
+    elif type(class_def) == str:
+        class_def_str = class_def   
+    elif class_def is None:
+        class_def_str = 'None'
+     
+    return class_def_str
+
+
+
+def simplify_class_def_str(class_def_str):
+    
+    if re.search('functools.partial\(<function matches_template at \w+>, template={.+}\)', class_def_str) is not None:
+        template_indices = re.search('{.+}', class_def_str).span()
+        class_def_str = class_def_str[template_indices[0]:template_indices[1]]        
+
+    return class_def_str
+
+
+
+def crop_str(s):
+
+    # Crop initial whitespace:
+    init_wspace = re.search('^\s+', s)
+    if init_wspace is not None:
+        span = init_wspace.span()
+        s = s[span[1]:]
+
+    # Crop final whitespace:
+    final_wspace = re.search(',*\s*\\n+', s)
+    if final_wspace is not None:
+        span = final_wspace.span()
+        s = s[:span[0]]
+
+    return s
 
 
 
