@@ -681,6 +681,11 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
         if save_sessions:
             train_sessions.append(test_session)
             test_sessions.append(test_session)
+
+        # "Unwrap" simulated contact data from timebins-by-features matrix to 
+        # timebins*features array:
+        sim_df['features'] = sim_df.apply(lambda x : np.reshape(x.features,-1), axis=1)
+        sim_df.index = np.arange(sim_df.shape[0])
     
     # ... otherwise, load pre-saved whisker simulation from disk or get dataframe 
     # passed as function parameter:
@@ -694,16 +699,11 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
         elif type(sessions_in) == pd.core.frame.DataFrame:
             sim_df = sessions_in
     
+    
     # Assign class labels:
     for tidx, task in enumerate(tasks):
         sim_df = assign_class_labels(sim_df, task)
         sim_df = sim_df.rename(columns={'class_label':'task{}_class_label'.format(tidx)})
-    
-    
-    # "Unwrap" simulated contact data from timebins-by-features matrix to 
-    # timebins*features array:
-    sim_df['features'] = sim_df.apply(lambda x : np.reshape(x.features,-1), axis=1)
-    sim_df.index = np.arange(sim_df.shape[0])
     
     
     # Zscore data if requested:
