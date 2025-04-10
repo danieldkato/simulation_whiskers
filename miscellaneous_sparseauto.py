@@ -89,7 +89,7 @@ def generate_hparams_df(hparams, task_defs=None, n_files=10, xor=False,
     disp=4.5, theta=0, steps_mov=10, rad_vec=6, init_position=0, mdl_type='autoencoder', 
     n_hidden=10, sig_init=1, sig_neu=0.1, lr=0.001, beta0=0, beta1=0, beta_rec=0, 
     beta_xor=1.0, beta_sp=0, beta_pr=0, n_epochs=10, batch_size=10, p_norm=2, 
-    n_splits=5, n_predictor_bins=10, n_predicted_bins=4):
+    n_splits=5, n_predictor_bins=10, n_predicted_bins=4, n_offsets=None):
     """
     Convert list of hyperparameter dicts to dataframe. Use when preparing to
     iteratively train classifiers while varying hyperparameters.
@@ -265,7 +265,8 @@ def generate_hparams_df(hparams, task_defs=None, n_files=10, xor=False,
         'p_norm' : p_norm,
         'n_splits' : n_splits,
         'n_predictor_bins' : n_predictor_bins,
-        'n_predicted_bins' : n_predicted_bins
+        'n_predicted_bins' : n_predicted_bins,
+        'n_offsets' : n_offsets
         }
 
     # Set defaults if necessary:
