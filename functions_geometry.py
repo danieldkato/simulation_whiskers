@@ -10,7 +10,9 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from scipy.stats import ortho_group 
 from sklearn.svm import LinearSVC
 from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
 from sklearn.linear_model import LogisticRegression
+import torch
 nan=float('nan')
 
 # Evaluate Geometry
@@ -70,75 +72,6 @@ def geometry_2D(feat_decod,feat_binary,reg):
             gg=(np.sum(feat_binary[t]==exp_uq[tt])==len(feat_binary[0]))
             if gg:
                 feat_binary_exp[t]=tt
-
-    ###################################
-    # Evaluate decoding perf on variable 1, variable 2 and xor tasks.
-    xor=np.sum(feat_binary,axis=1)%2 # Define the XOR function wrt to the two variables
-    n_cv=5
-    perf_tasks_pre=np.zeros((n_cv,3,2))
-
-    # Initialize output dataframes:
-    perf_df = pd.DataFrame(columns=['task', 'train', 'test'])
-    all_tasks = []
-    all_train_acc = []
-    all_test_acc = []
-
-    # Variable 1
-    skf=StratifiedKFold(n_splits=n_cv,shuffle=True)
-    g=-1
-    for train, test in skf.split(feat_decod,feat_binary[:,0]):
-        g=(g+1)
-        supp=LogisticRegression(C=1,class_weight='balanced',solver='lbfgs')
-        mod=supp.fit(feat_decod[train],feat_binary[:,0][train])
-        perf_tasks_pre[g,0,0]=supp.score(feat_decod[train],feat_binary[:,0][train])
-        perf_tasks_pre[g,0,1]=supp.score(feat_decod[test],feat_binary[:,0][test])
-
-    # Variable 2
-    skf=StratifiedKFold(n_splits=n_cv,shuffle=True)
-    g=-1
-    for train, test in skf.split(feat_decod,feat_binary[:,1]):
-        g=(g+1)
-        supp=LogisticRegression(C=1,class_weight='balanced',solver='lbfgs')
-        mod=supp.fit(feat_decod[train],feat_binary[:,1][train])
-        perf_tasks_pre[g,1,0]=supp.score(feat_decod[train],feat_binary[:,1][train])
-        perf_tasks_pre[g,1,1]=supp.score(feat_decod[test],feat_binary[:,1][test])
-
-    # XOR
-    skf=StratifiedKFold(n_splits=n_cv,shuffle=True)
-    g=-1
-    for train, test in skf.split(feat_decod,xor):
-        g=(g+1)
-        
-        # Initialize array that will be used for storing XOR distributions:
-        if g==0:
-            xor_dat=np.empty((n_cv,int(np.sum(xor)),2))
-        
-        supp=LogisticRegression(C=1,class_weight='balanced',solver='lbfgs')
-        mod=supp.fit(feat_decod[train],xor[train])
-        perf_tasks_pre[g,2,0]=supp.score(feat_decod[train],xor[train])
-        perf_tasks_pre[g,2,1]=supp.score(feat_decod[test],xor[test])
-        
-        # Save data split by XOR label:
-        xor0=feat_decod[xor==0]
-        xor0_m=np.mean(xor0,axis=1)
-        xor1=feat_decod[xor==1]
-        xor1_m=np.mean(xor1,axis=1)
-        xor_dat[g,:,0]=xor0_m
-        xor_dat[g,:,1]=xor1_m
-        
-    xor_dat=np.mean(xor_dat,axis=0)
-    perf_tasks=np.mean(perf_tasks_pre,axis=0)
-    
-    all_tasks = [0,1,'xor']
-    all_train_acc = perf_tasks[:,0]
-    all_test_acc = perf_tasks[:,1]
-    
-    perf_df['task'] = all_tasks
-    perf_df['train'] = all_train_acc
-    perf_df['test'] = all_test_acc
-    
-    ###############################################
-    # Calculate Abstraction (CCGP)
     
     # Define the dichotomies for the 2D case            
     dichotomies=np.array([[0,0,1,1],[0,1,0,1]])
@@ -192,8 +125,101 @@ def geometry_2D(feat_decod,feat_binary,reg):
     geo_df['test_accuracy'] = all_test_acc
     geo_df['parallelism'] = all_par
     
-    return perf_tasks,perf_ccgp, parallel, xor_dat, perf_df, geo_df
+    return geo_df
 
+
+
+def perf_2D(feat_decod,feat_binary,clf_type='logistic',
+    lr_params={'C':1,'class_weight':'balanced', 'solver':'lbfgs'}, 
+    mlp_params=None):
+    
+    if clf_type != 'logistic' and clf_type != 'mlp':
+        raise AssertionError('Please specify either ''logistic'' or ''mlp'' for `clf_type` param.')
+
+    # Initialize logistic regression if requested:
+    if clf_type == 'logistic': 
+        if lr_params is not None:
+            clf=LogisticRegression(C=lr_params['C'],class_weight=lr_params['class_weight'],solver=lr_params['solver'])
+        else:
+            raise AssertionError('`clf_type` set to ''logistic'' but no `lr_params` specified.')
+            
+    # Initialize MLP if requested:
+    elif clf_type == 'mlp' :
+        if mlp_params is None:
+            clf=MLPClassifier(hidden_layer_sizes=mlp_params['hidden_layer_sizes'],
+                              activation=mlp_params['activation'],
+                              solver=mlp_params['solver'],
+                              alpha=mlp_params['reg'],
+                              learning_rate=mlp_params['lr'], 
+                              learning_rate_init=mlp_params['lr_init'])
+        else:
+            raise AssertionError('`clf_type` set to ''mlp'' but no `mlp_params` specified.')
+    
+    # Evaluate decoding perf on variable 1, variable 2 and xor tasks.
+    xor=np.sum(feat_binary,axis=1)%2 # Define the XOR function wrt to the two variables
+    n_cv=5
+    perf_tasks_pre=np.zeros((n_cv,3,2))
+
+    # Initialize output dataframes:
+    perf_df = pd.DataFrame(columns=['task', 'train', 'test'])
+    all_tasks = []
+    all_train_acc = []
+    all_test_acc = []
+
+    # Variable 1
+    skf=StratifiedKFold(n_splits=n_cv,shuffle=True)
+    g=-1
+    for train, test in skf.split(feat_decod,feat_binary[:,0]):
+        g=(g+1)
+        mod=clf.fit(feat_decod[train],feat_binary[:,0][train])
+        perf_tasks_pre[g,0,0]=clf.score(feat_decod[train],feat_binary[:,0][train])
+        perf_tasks_pre[g,0,1]=clf.score(feat_decod[test],feat_binary[:,0][test])
+
+    # Variable 2
+    skf=StratifiedKFold(n_splits=n_cv,shuffle=True)
+    g=-1
+    for train, test in skf.split(feat_decod,feat_binary[:,1]):
+        g=(g+1)
+        mod=clf.fit(feat_decod[train],feat_binary[:,1][train])
+        perf_tasks_pre[g,1,0]=clf.score(feat_decod[train],feat_binary[:,1][train])
+        perf_tasks_pre[g,1,1]=clf.score(feat_decod[test],feat_binary[:,1][test])
+
+    # XOR
+    skf=StratifiedKFold(n_splits=n_cv,shuffle=True)
+    g=-1
+    for train, test in skf.split(feat_decod,xor):
+        g=(g+1)
+        
+        # Initialize array that will be used for storing XOR distributions:
+        if g==0:
+            xor_dat=np.empty((n_cv,int(np.sum(xor)),2))
+        
+        mod=clf.fit(feat_decod[train],xor[train])
+        perf_tasks_pre[g,2,0]=clf.score(feat_decod[train],xor[train])
+        perf_tasks_pre[g,2,1]=clf.score(feat_decod[test],xor[test])
+        
+        # Save data split by XOR label:
+        xor0=feat_decod[xor==0]
+        xor0_m=np.mean(xor0,axis=1)
+        xor1=feat_decod[xor==1]
+        xor1_m=np.mean(xor1,axis=1)
+        xor_dat[g,:,0]=xor0_m
+        xor_dat[g,:,1]=xor1_m
+        
+    xor_dat=np.mean(xor_dat,axis=0)
+    perf_tasks=np.mean(perf_tasks_pre,axis=0)
+    
+    all_tasks = [0,1,'xor']
+    all_train_acc = perf_tasks[:,0]
+    all_test_acc = perf_tasks[:,1]
+    
+    perf_df['clf_type'] = clf_type
+    perf_df['task'] = all_tasks
+    perf_df['train'] = all_train_acc
+    perf_df['test'] = all_test_acc
+    
+    return perf_df
+    
 
 
 def find_matching_2d_bin_trials(feat_binary):
@@ -277,3 +303,26 @@ def subsample_2d_bin(dicts, k):
         curr_trials=permutation(d['trial_nums'])[0:k]
         all_indices+=list(curr_trials)
     return all_indices
+
+
+
+def participation_ratio(X):
+    
+    # Assume X to be a samples-by-features tensor:
+    
+    # Center data:    
+    mu = torch.mean(X, axis=0)
+    Mu = mu.repeat(X.shape[0],1)
+    X_ctr = X - Mu
+    
+    # Compute covariance matrix:
+    Cov = torch.matmul(X_ctr.T, X_ctr)
+    
+    # Compute eigenvalues of covariance matrix:
+    eig = torch.linalg.eig(Cov).eigenvalues
+    eig = torch.real(eig)
+    
+    # Compute participation ratio:
+    pr = (torch.sum(eig)**2)/torch.sum(eig**2)
+    
+    return pr

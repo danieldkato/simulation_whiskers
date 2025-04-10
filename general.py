@@ -10,7 +10,6 @@ import pathlib
 import pickle as pkl
 import numpy as np
 from numpy import matlib
-from simulation_whiskers.simulate_task import simulate_session, session2feature_array, session2labels
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
@@ -20,11 +19,19 @@ from sklearn.linear_model import LogisticRegression
 import pandas as pd
 import seaborn as sns
 from scipy.stats import zscore
+import inspect
+import re
 try:
     from analysis_metadata.analysis_metadata import Metadata, write_metadata
 except ImportError or ModuleNotFoundError:
     analysis_metdata_imported=False
-    
+import functools
+import socket
+hostname = socket.gethostname()
+if 'rc.zi.columbia.edu' in hostname:
+    from ws.simulate_task import simulate_session, session2feature_array, session2labels
+else:
+    from simulation_whiskers.simulate_task import simulate_session, session2feature_array, session2labels
 
 
 def pca_trials(sim_params, n=None, sum_bins=False, omit_angle=False, center=True, plot=True, scale=False, face_task=None, edge_task=None, face_cmap='cool', edge_cmap='binary', alpha=0.4, size=5.0, jitter=0.1, linewidth=1.0, save=True, output_directory=None):
@@ -804,3 +811,116 @@ def proj_code_plane(X, base_labels, proj_labels, classifier='LogisticRegression'
             write_metadata(M, metadata_path)   
     
     return X_e0, X_e1, deg
+
+
+
+
+
+def matches_template(d, template):
+    
+    b = np.all([d[key] == template[key] for key in template.keys()])
+    
+    return b
+
+
+
+def class_def2str(class_def):
+    
+    if str(type(class_def)) == "<class 'function'>":
+        class_def_str = crop_str(inspect.getsource(class_def))
+    elif type(class_def) == functools.partial:
+        class_def_str = str(class_def)
+    elif type(class_def) == str:
+        class_def_str = class_def   
+    elif class_def is None:
+        class_def_str = 'None'
+     
+    return class_def_str
+
+
+
+def simplify_class_def_str(class_def_str):
+    
+    if re.search('functools.partial\(<function matches_template at \w+>, template={.+}\)', class_def_str) is not None:
+        template_indices = re.search('{.+}', class_def_str).span()
+        class_def_str = class_def_str[template_indices[0]:template_indices[1]]        
+
+    return class_def_str
+
+
+
+def crop_str(s):
+
+    # Crop initial whitespace:
+    init_wspace = re.search('^\s+', s)
+    if init_wspace is not None:
+        span = init_wspace.span()
+        s = s[span[1]:]
+
+    # Crop final whitespace:
+    final_wspace = re.search(',*\s*\\n+', s)
+    if final_wspace is not None:
+        span = final_wspace.span()
+        s = s[:span[0]]
+
+    return s
+
+
+
+def find_df_constants(df):
+    
+    constants = dict()
+    singleton_cols = find_singleton_cols(df)
+    for col in singleton_cols:
+        constants[col] = df.iloc[0][col]
+    
+    return constants
+
+    
+
+def find_singleton_cols(df):
+    """
+    Find all columns of a dataframe with only a single value. 
+
+    Parameters
+    ----------
+    df : pandas.core.frame.DataFrame
+        Input dataframe.
+
+    Returns
+    -------
+    singleton_cols : list
+        List of input dataframe columns with only a single unique value.
+
+    """
+    
+    n_unq_vals_per_col = df.apply(lambda x : len(unq(x)) if unq(x) is not None else None, axis=0)
+    is_singleton = n_unq_vals_per_col.values == 1
+    singleton_col_indices = np.where(is_singleton)[0]
+    singleton_cols = df.columns[singleton_col_indices]
+    
+    return singleton_cols
+
+
+
+def unq(s):
+    """
+    Try to find unique values in input array, list, or pandas series. 
+
+    Parameters
+    ----------
+    s : array-like
+        Input list, array, or pandas series.
+
+    Returns
+    -------
+    out : numpy.ndarray | None
+        Array of unique values in input if applicable; None otherwise.
+
+    """
+    
+    try:
+        out = np.unique(s)
+    except:
+        out = None
+    return out

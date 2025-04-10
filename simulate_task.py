@@ -42,6 +42,8 @@ try:
 except ImportError or ModuleNotFoundError:
     analysis_metdata_imported=False
 
+warnings.filterwarnings('ignore', category=RuntimeWarning)
+
 #####################################
 # Functions
 
@@ -1226,7 +1228,7 @@ def simulate_session(params, save_output=False, sum_bins=False, output_directory
 
     iterable_params=[concavity, amp, freq_sh, z1, disp, theta, steps_mov, rad_vec]
     num_vals_per_param=[np.size(x) for x in iterable_params]
-    n_conditions=np.product(num_vals_per_param)
+    n_conditions=np.prod(num_vals_per_param)
 
     # Reformat some parameters into lists if necessary: TODO: find a more elegant way of doing this
     if type(rad_vec)!=list:
@@ -1325,7 +1327,7 @@ def simulate_session(params, save_output=False, sum_bins=False, output_directory
         if sum_bins:
             trial_dict['features_bins_summed'] = np.sum(curr_trial_features,0)
         
-        session = session.append(trial_dict, ignore_index=True)
+        session = pd.concat([session, pd.Series(trial_dict).to_frame().T], axis=0)
         
     # Save session if requested:
     if save_output: 
