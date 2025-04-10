@@ -646,7 +646,6 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
     if sessions_in!=None:
         save_sessions=False # no need to re-save whisker simulation if loading from disk in the first place
         sessions=load_simulation(sessions_in)
-        n_files=len(np.unique(sessions.file_idx))
     # If not loading previously-run whisker simulation and save_sessions is True: 
     elif save_sessions:
         train_sessions=[]
@@ -836,6 +835,7 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
     results['geo_df'] = geo_df.reset_index()
     results['train_sessions'] = train_sessions
     results['test_sessions'] = test_sessions
+    results['mdl'] = model
     
     end_time=datetime.now()
     duration = end_time - start_time
