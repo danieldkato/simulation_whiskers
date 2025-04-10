@@ -630,6 +630,7 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
     if rec_network_type=='prediction':
         n_predictor_bins=autoencoder_params['n_predictor_bins']
         n_predicted_bins=autoencoder_params['n_predicted_bins']
+        n_offsets=autoencoder_params['n_offsets']
     
     # Verify that betas sum to <= 1:
     #if beta0+beta1+beta_xor > 1:
@@ -721,8 +722,9 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
         
     elif rec_network_type=='prediction':
         model=prediction_network(n_inp=n_predictor_bins*n_feat, n_hidden=n_hidden, n_out=n_predicted_bins*n_feat, sigma_init=sig_init, xor=xor)
-        n_offsets = ( n_inp - n_feat*(n_predictor_bins + n_predicted_bins) ) / n_feat
-        n_offsets = int(n_offsets)
+        if n_offsets is None:
+            n_offsets = ( n_inp - n_feat*(n_predictor_bins + n_predicted_bins) ) / n_feat
+            n_offsets = int(n_offsets)
         sim_df = causal_mask(sim_df, n_feat, n_predictor_bins, n_predicted_bins, n_offsets)
 
         
