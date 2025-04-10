@@ -645,7 +645,6 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
     # Load previously-simulated whisker data if requested:
     if sessions_in!=None:
         save_sessions=False # no need to re-save whisker simulation if loading from disk in the first place
-        sessions=load_simulation(sessions_in)
     # If not loading previously-run whisker simulation and save_sessions is True: 
     elif save_sessions:
         train_sessions=[]
@@ -683,6 +682,17 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
             train_sessions.append(test_session)
             test_sessions.append(test_session)
     
+    # ... otherwise, load pre-saved whisker simulation from disk or get dataframe 
+    # passed as function parameter:
+    else:
+        
+        # If sessions_in is path to saved file:
+        if os.path.isfile(sessions_in):
+            sim_df=load_simulation(sessions_in)
+    
+        # If sessions_in is a dataframe:
+        elif type(sessions_in) == pd.core.frame.DataFrame:
+            sim_df = sessions_in
     
     # Assign class labels:
     for tidx, task in enumerate(tasks):
