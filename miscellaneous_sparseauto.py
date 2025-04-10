@@ -730,16 +730,17 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
 
     # Train and test autoencoders:
     print('Fitting autoencoder...')
-    n_pred_feat=sim_df.iloc[0].predictor_features.shape[0]
+    n_predictor_feat=sim_df.iloc[0].predictor_features.shape[0]
+    n_predicted_feat=sim_df.iloc[0].prediced_features.shape[0]
     n_labels_task0=len(np.unique(sim_df.task0_class_label))
     n_labels_task1=len(np.unique(sim_df.task1_class_label))
 
 
     # Initialize task-optimized autoencoder:
     if rec_network_type=='autoencoder':
-        model=ae_dispatch(n_inp=n_pred_feat,n_hidden=n_hidden,sigma_init=sig_init,k=[n_labels_task0,n_labels_task1],xor=xor) 
+        model=ae_dispatch(n_inp=n_predictor_feat,n_hidden=n_hidden,sigma_init=sig_init,k=[n_labels_task0,n_labels_task1],xor=xor) 
     elif rec_network_type=='prediction':
-        model=prediction_network(n_inp=n_pred_feat, n_hidden=n_hidden, n_out=n_predicted_bins*n_feat, sigma_init=sig_init, xor=xor)
+        model=prediction_network(n_inp=n_predictor_feat, n_hidden=n_hidden, n_out=n_predicted_feat, sigma_init=sig_init, xor=xor)
 
         
     class_label_cols = [x for x in sim_df.columns if re.search('task\d+_class_label',x) is not None]
