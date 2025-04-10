@@ -30,8 +30,17 @@ from scipy.stats import zscore
 def warn(*args, **kwargs):
     pass
 import warnings
-from simulation_whiskers.simulate_task import simulate_session, session2feature_array, session2labels, load_simulation, binarize_contacts
-from simulation_whiskers.functions_geometry import geometry_2D, perf_2D, find_matching_2d_bin_trials, subsample_2d_bin, participation_ratio
+import socket
+
+hostname = socket.gethostname()
+
+if 'rc.zi.columbia.edu' in hostname or hostname == 'DESKTOP-PJOJ7HT':
+    from ws.simulate_task import simulate_session, session2feature_array, session2labels, load_simulation, binarize_contacts
+    from ws.functions_geometry import geometry_2D, perf_2D, find_matching_2d_bin_trials, subsample_2d_bin, participation_ratio
+else:
+    from simulation_whiskers.simulate_task import simulate_session, session2feature_array, session2labels, load_simulation, binarize_contacts
+    from simulation_whiskers.functions_geometry import geometry_2D, perf_2D, find_matching_2d_bin_trials, subsample_2d_bin, participation_ratio
+
 warnings.warn = warn
 nan=float('nan')
 try:
@@ -1442,9 +1451,5 @@ def sparsity_loss(data,p):
 
 
 
-def matches_template(d, template):
-    
-    b = np.all([d[key] == template[key] for key in template.keys()])
-    
-    return b
+
 

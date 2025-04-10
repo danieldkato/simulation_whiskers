@@ -15,10 +15,19 @@ import numpy as np
 import pandas as pd
 import json
 import itertools
-from simulation_whiskers.simulate_task import load_sim_params, load_task_def
-from simulation_whiskers.miscellaneous_sparseauto import mdl_geometry_pipeline, fmt_ae_metadata, generate_hparams_df
+import socket 
+
+hostname = socket.gethostname()
+
+if 'rc.zi.columbia.edu' in hostname or hostname == 'DESKTOP-PJOJ7HT':
+    from ws.simulate_task import load_sim_params, load_task_def
+    from ws.miscellaneous_sparseauto import mdl_geometry_pipeline, fmt_ae_metadata, generate_hparams_df
+else:
+    from simulation_whiskers.simulate_task import load_sim_params, load_task_def
+    from simulation_whiskers.miscellaneous_sparseauto import mdl_geometry_pipeline, fmt_ae_metadata, generate_hparams_df
 #from simulation_whiskers.plot import plot_iterate_autoencoder_results, plot_autoencoder_geometry
-from simulation_whiskers.plot import plot_iterate_autoencoder_results, plot_ccgps_by_layer, plot_pars_by_layer
+    from simulation_whiskers.plot import plot_iterate_autoencoder_results, plot_ccgps_by_layer, plot_pars_by_layer
+    
 from analysis_metadata.analysis_metadata import Metadata, increment_dir_name, write_metadata
 import time
 
@@ -89,7 +98,7 @@ task_defs = [
 
 
 # Define general variables:
-n_files = 8
+n_files = 1
 n_geo_subsamples = 1
 sum_inpt=False
 xor=True
@@ -128,18 +137,18 @@ init_position = 0
 
 # Autoencoder parameters:
 mdl_type = "autoencoder"
-n_hidden = 20
+n_hidden = 80
 sig_init = 1 
 sig_neu = 0.1 
 lr = 0.001
 beta0 = 0
 beta1 = 0
-beta_rec = 0
+beta_rec = 0.5
 beta_xor = 0
-n_epochs = 50
+n_epochs = 200
 batch_size = 10
 beta_sp = 0
-beta_pr = 0
+beta_pr = 0.5
 p_norm = 2
 n_splits = 5
 n_predictor_bins = 10
@@ -149,7 +158,10 @@ n_predicted_bins = 4
 gpu = False
 
 # Output directory:
-base_output_directory='E:\\simulation_whiskers\\results\\'
+if hostname == 'DESKTOP-PJOJ7HT':
+    base_output_directory = os.path.join('Z:\\', 'users', 'Dan', 'code', 'ws', 'results')
+else:
+    base_output_directory = 'E:\\simulation_whiskers\\results\\'
 run_base_name='run'
 sv=False
   
@@ -253,6 +265,7 @@ for hidx, curr_hparams in hparams_df.iterrows():
         verbose=True)
 
     curr_hparams_df = pd.DataFrame(curr_hparams).T
+    curr_hparams_df['task_defs'] = curr_hparams_df.apply(lambda x : [' vs '.join([inspect.getsource(c) for c in t]) for t in x.task_defs], axis=1)
 
     # Extract geometry results, add metadata:
     curr_geo_results = curr_results['geo_df']
@@ -276,7 +289,8 @@ for hidx, curr_hparams in hparams_df.iterrows():
         curr_ae_results = curr_results['ae_df']
         ae_meta_cols = list(set(curr_hparams_df) - set(curr_ae_results.columns))
         ae_meta = pd.concat([curr_hparams_df[ae_meta_cols]]*curr_ae_results.shape[0],axis=0)
-        curr_ae_results = pd.concat([curr_ae_results, perf_meta], axis=1)
+        ae_meta.index = np.arange(ae_meta.shape[0])
+        curr_ae_results = pd.concat([curr_ae_results, ae_meta], axis=1)
         all_ae_results = pd.concat([all_ae_results, curr_ae_results])
 
 all_results = dict()
