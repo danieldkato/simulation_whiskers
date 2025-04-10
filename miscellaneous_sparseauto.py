@@ -686,6 +686,16 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
         # timebins*features array:
         sim_df['features'] = sim_df.apply(lambda x : np.reshape(x.features,-1), axis=1)
         sim_df.index = np.arange(sim_df.shape[0])
+
+        # Zscore data if requested:
+        if zscore_data:
+            splits = ['train', 'test']
+            for spl in splits:
+                curr_spl = sim_df[sim_df.split==spl]
+                X = np.array(list(curr_spl.features))
+                Xhat = zscore(X, axis=0)
+                Xhat[np.isnan(Xhat)] = 0
+                sim_df[curr_spl.index, 'features'] = list(Xhat)
     
     # ... otherwise, load pre-saved whisker simulation from disk or get dataframe 
     # passed as function parameter:
@@ -703,20 +713,9 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
     # Assign class labels:
     for tidx, task in enumerate(tasks):
         sim_df = assign_class_labels(sim_df, task)
-        sim_df = sim_df.rename(columns={'class_label':'task{}_class_label'.format(tidx)})
+        sim_df = sim_df.rename(columns={'class_label':'task{}_class_label'.format(tidx)})    
     
-    
-    # Zscore data if requested:
-    if zscore_data:
-        splits = ['train', 'test']
-        for spl in splits:
-            curr_spl = sim_df[sim_df.split==spl]
-            X = np.array(list(curr_spl.features))
-            Xhat = zscore(X, axis=0)
-            Xhat[np.isnan(Xhat)] = 0
-            sim_df[curr_spl.index, 'features'] = list(Xhat)
-            
-    
+
     # Train and test autoencoders:
     print('Fitting autoencoder...')
     n_inp=sim_df.iloc[0].features.shape[0]
