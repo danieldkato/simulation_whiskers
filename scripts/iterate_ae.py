@@ -19,7 +19,7 @@ import socket
 
 hostname = socket.gethostname()
 
-if 'rc.zi.columbia.edu' in hostname or hostname == 'DESKTOP-PJOJ7HT':
+if 'rc.zi.columbia.edu' in hostname or hostname == 'DESKTOP-PJOJ7HT' or hostname == 'DESKTOP-1PVCRAF':
     from ws.simulate_task import load_sim_params, load_task_def
     from ws.miscellaneous_sparseauto import mdl_geometry_pipeline, fmt_ae_metadata, generate_hparams_df
 else:
