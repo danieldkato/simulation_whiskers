@@ -34,7 +34,7 @@ import socket
 
 hostname = socket.gethostname()
 
-if 'rc.zi.columbia.edu' in hostname or hostname == 'DESKTOP-PJOJ7HT':
+if 'rc.zi.columbia.edu' in hostname or hostname == 'DESKTOP-PJOJ7HT' or hostname == 'DESKTOP-1PVCRAF':
     from ws.simulate_task import simulate_session, session2feature_array, session2labels, load_simulation, binarize_contacts
     from ws.functions_geometry import geometry_2D, perf_2D, find_matching_2d_bin_trials, subsample_2d_bin, participation_ratio
 else:
@@ -761,9 +761,16 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
     # Split dataframe into separate rows for separate model layers:
     representation_df = layer_cols2rows(ae_df)
     
-    # Do some filtering based on whether saving learning on not:
+    # Do some filtering based on whether saving learning or not:
     if not save_learning:
         representation_df = representation_df[np.array(representation_df.epoch==0) | np.array(representation_df.epoch==n_epochs-1)]
+        learning_inds = np.array(ae_df.epoch!=0) & np.array(ae_df.epoch!=n_epochs-1)
+        ae_df.loc[learning_inds, 'inpt_train'] = None
+        ae_df.loc[learning_inds, 'inpt_test'] = None
+        ae_df.loc[learning_inds, 'hidden_train'] = None
+        ae_df.loc[learning_inds, 'hidden_test'] = None
+        ae_df.loc[learning_inds, 'rec_train'] = None
+        ae_df.loc[learning_inds, 'rec_test'] = None
     
     # Exclude rows corresponding to input @ epoch > 0, reconstruction @ epoch < last:
     L = representation_df[['layer', 'epoch']].drop_duplicates()       
