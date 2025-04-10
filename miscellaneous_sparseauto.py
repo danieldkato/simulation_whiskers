@@ -848,8 +848,8 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
     results['ae_df'] = ae_df.reset_index()
     results['perf_df'] = perf_df.reset_index()
     results['geo_df'] = geo_df.reset_index()
-    results['train_sessions'] = train_sessions
-    results['test_sessions'] = test_sessions
+    results['train_sessions'] = sim_df[sim_df.split=='train']
+    results['test_sessions'] = sim_df[sim_df.split=='test']
     results['mdl'] = model
     
     end_time=datetime.now()
