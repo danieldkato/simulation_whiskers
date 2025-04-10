@@ -731,7 +731,7 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
     # Train and test autoencoders:
     print('Fitting autoencoder...')
     n_predictor_feat=sim_df.iloc[0].predictor_features.shape[0]
-    n_predicted_feat=sim_df.iloc[0].prediced_features.shape[0]
+    n_predicted_feat=sim_df.iloc[0].predicted_features.shape[0]
     n_labels_task0=len(np.unique(sim_df.task0_class_label))
     n_labels_task1=len(np.unique(sim_df.task1_class_label))
 
