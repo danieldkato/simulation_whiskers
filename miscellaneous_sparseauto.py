@@ -686,6 +686,7 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
         # timebins*features array:
         sim_df['features'] = sim_df.apply(lambda x : np.reshape(x.features,-1), axis=1)
         sim_df.index = np.arange(sim_df.shape[0])
+        n_inp=sim_df.iloc[0].features.shape[0]
 
         # Zscore data if requested:
         if zscore_data:
@@ -696,6 +697,17 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
                 Xhat = zscore(X, axis=0)
                 Xhat[np.isnan(Xhat)] = 0
                 sim_df[curr_spl.index, 'features'] = list(Xhat)
+    
+        # Split simulated whisker data into predicted and predictor features:
+        if rec_network_type=='autoencoder':
+            sim_df = sim_df.rename(columns={'features':'predictor_features'})
+            sim_df['predicted_features'] = sim_df['predictor_features']
+            
+        elif rec_network_type=='prediction':        
+            if n_offsets is None:
+                n_offsets = ( n_inp - n_feat*(n_predictor_bins + n_predicted_bins) ) / n_feat
+                n_offsets = int(n_offsets)
+            sim_df = causal_mask(sim_df, n_feat, n_predictor_bins, n_predicted_bins, n_offsets)
     
     # ... otherwise, load pre-saved whisker simulation from disk or get dataframe 
     # passed as function parameter:
@@ -718,22 +730,16 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
 
     # Train and test autoencoders:
     print('Fitting autoencoder...')
-    n_inp=sim_df.iloc[0].features.shape[0]
+    n_pred_feat=sim_df.iloc[0].predictor_features.shape[0]
     n_labels_task0=len(np.unique(sim_df.task0_class_label))
     n_labels_task1=len(np.unique(sim_df.task1_class_label))
 
+
     # Initialize task-optimized autoencoder:
     if rec_network_type=='autoencoder':
-        model=ae_dispatch(n_inp=n_inp,n_hidden=n_hidden,sigma_init=sig_init,k=[n_labels_task0,n_labels_task1],xor=xor) 
-        sim_df = sim_df.rename(columns={'features':'predictor_features'})
-        sim_df['predicted_features'] = sim_df['predictor_features']
-        
+        model=ae_dispatch(n_inp=n_pred_feat,n_hidden=n_hidden,sigma_init=sig_init,k=[n_labels_task0,n_labels_task1],xor=xor) 
     elif rec_network_type=='prediction':
-        model=prediction_network(n_inp=n_predictor_bins*n_feat, n_hidden=n_hidden, n_out=n_predicted_bins*n_feat, sigma_init=sig_init, xor=xor)
-        if n_offsets is None:
-            n_offsets = ( n_inp - n_feat*(n_predictor_bins + n_predicted_bins) ) / n_feat
-            n_offsets = int(n_offsets)
-        sim_df = causal_mask(sim_df, n_feat, n_predictor_bins, n_predicted_bins, n_offsets)
+        model=prediction_network(n_inp=n_pred_feat, n_hidden=n_hidden, n_out=n_predicted_bins*n_feat, sigma_init=sig_init, xor=xor)
 
         
     class_label_cols = [x for x in sim_df.columns if re.search('task\d+_class_label',x) is not None]
