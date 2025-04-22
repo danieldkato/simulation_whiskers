@@ -922,13 +922,20 @@ def causal_mask(df, n_feat, n_predictor_bins, n_predicted_bins, n_offsets):
 
 def layer_cols2rows(df):
     
+    # Assign default if necessary:
+    if 'mdl_id' not in df.columns:
+        df['mdl_id'] = 'mdl'
+    
+    # Find layers:
     representation_cols = [x for x in df.columns if re.search('\w+_(test|train)',x) is not None]
-    representation_df = df[representation_cols]
-    layers = [x[:-6] for x in representation_df.columns if re.search('_train', x) is not None]
+    representation_cols = ['mdl_id'] + representation_cols
+    layers = [x[:-6] for x in df[representation_cols].columns if re.search('_train', x) is not None]
+    
+    # Iterate over models x layers, separate rows for each:
     representation_list = []
     for layer in layers:
-        curr_cols = [x for x in representation_cols if layer in x]
-        curr_representations = representation_df[curr_cols]
+        curr_cols = [x for x in representation_cols if layer in x or x=='mdl_id']
+        curr_representations = df[curr_cols]
         curr_representations = curr_representations.rename(columns={layer+'_train':'train', layer+'_test':'test'})
         curr_representations['layer'] = layer
         curr_representations['epoch'] = curr_representations.index
@@ -936,6 +943,14 @@ def layer_cols2rows(df):
     representation_df = pd.concat(representation_list, axis=0)    
     representation_df = representation_df[representation_df.apply(lambda x : x.train is not None and x.test is not None, axis=1)] # retain only rows with saved representations
     representation_df.index = np.arange(representation_df.shape[0])                
+    meta_cols = ['mdl_id', 'layer', 'epoch']
+    representation_df = representation_df[meta_cols + ['train', 'test']]
+    
+    # Sort by layer:
+    f = lambda x : 0 if re.search('inpt', x) is not None else 1 if re.search('hidden', x) is not None else 2 if re.search('rec', x) is not None else np.nan
+    representation_df['layer_idx'] = representation_df.layer.apply(f)
+    representation_df = representation_df.sort_values(by=['mdl_id', 'layer_idx', 'epoch'])
+    representation_df = representation_df.drop(columns='layer_idx')
     
     return representation_df
 
