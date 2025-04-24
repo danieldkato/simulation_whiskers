@@ -79,212 +79,31 @@ def classifier(data,clase,reg,model='logistic', hidden_layer_sizes=(10), activat
 
 
 
-def generate_hparams_df(hparams, task_defs=None, n_files=10, xor=False, 
-    n_geo_subsamples=1, zscore_data=False, save_perf=False, sum_inpt=False, 
-    chunked_reconstruction_loss=False, save_learning=False, gpu=False, save_sessions=False, 
-    verbose=False, concavity=[0,1], n_whisk=2, prob_poiss=1.01, noise_w=0.3, 
-    spread='auto', speed=2.0, ini_phase_m=0, ini_phase_spr=100, delay_time=0, 
-    freq_m=3.0, freq_std=0.1, std_reset=0, t_total=2, dt=0.1, dx=0.01, 
-    n_trials_pre=50, n_repeats=2, amp=0, freq_sh=0, z1=4, max_rad=50, n_rad=4, 
-    disp=4.5, theta=0, steps_mov=10, rad_vec=6, init_position=0, mdl_type='autoencoder', 
-    n_hidden=10, sig_init=1, sig_neu=0.1, lr=0.001, beta0=0, beta1=0, beta_rec=0, 
-    beta_xor=1.0, beta_sp=0, beta_pr=0, n_epochs=10, batch_size=10, p_norm=2, 
-    n_splits=5, n_predictor_bins=10, n_predicted_bins=4, n_offsets=None):
-    """
-    Convert list of hyperparameter dicts to dataframe. Use when preparing to
-    iteratively train classifiers while varying hyperparameters.
-
-    Parameters
-    ----------
-    hparams : list
-        List of dicts. Each dict corresponds to a single set of hyperparameters.
-        Each dict should define keys corresponding to one of more of the input 
-        parameters described below. Dicts do not need to define keys corresponding
-        to all input parameters; if a dict does *not* define a given parameter,
-        then a default will be assigned based on the input arguments passed to
-        generate_hparams_df(). 
+def generate_hparams_df(defaults, hparams_manual=None):
     
-    class_defs : list, optional
-        Default list of class definitions. Each element corresponds to a classifier
-        output class and should be a boolean function that takes rows (observations) 
-        of a data table as input and returns True if and only if the row belongs 
-        to the corresponding class.
+    # Define default hparams dict if necessary:
+    if hparams_manual is None:
+        hparams_manual = [defaults]
         
-        Either every dict in `hparams` must define its own list of class_defs or
-        a default must be specified in the input parameters to 
-        generate_hparams_df. 
+    # Make sure that every key defined in ANY manually-specified hyperparameter 
+    # dict is a) defined in ALL hyperparameter dicts OR b) defined in dict of 
+    # default hyperparameters:
+    default_keys = defaults.keys()
+    K = [set(h.keys()) for h in hparams_manual]
+    key_union = set.union(*K)
+    key_intersection = K[0].intersection(*K[1:])
+    key_complement = set(key_union).difference(set(key_intersection))
+    if len(key_complement) > 0 and np.any([k not in default_keys for k in key_complement]):
+        raise AssertionError('Keys {} not defined for all manually-defined hyperparameter sets AND not defined in defaults.'.format(', '.join(list(key_complement))) )
     
-    analysis_window : list, optional
-        Default time window spanned by analysis, relative to stimulus/saccade 
-        start/stop, in milliseconds. First element: analysis window start. Second
-        element: analysis window stop.
-        
-        Either every dict in `hparams` must define its own list of class_defs or
-        a default must be specified in the input parameters to 
-        generate_hparams_df. 
-    
-    bin_size : float, optional
-        Default classifier time bin width, in milliseconds. The default is 60.
-    
-    bin_stride : float, optional
-        Default duration between classifier bin start times, in milliseconds. 
-        The default is 20.
-    
-    frac_train : float, optional
-        Default fraction of trials/condition used for training. The default is 
-        0.75.
-    
-    n_repeats : int, optional
-        Default number of trial resamples per hyperparameter set. The default is 10.
-    
-    group_defs : list, optional
-        Default list of trial group definitions. If splitting trials into separate
-        groups on which classifiers should be trained separately (e.g., novel vs
-        familiar), should be a list of boolean functions. Each function should
-        take a row (observation) of a data table as input and return True if 
-        and only if the row belongs to the corresponding group. 
-        
-        Otherwise, the default is lambda x:True. This results in all trials being
-        included in a single group.
-    
-    rep_sample_frac : float, optional
-        Default fraction of trials to sample per condition. Assuming 
-        equal numbers of trials per condition, the total number of trials per 
-        condition will be total_trials_per_condition * rep_sample_frac * frac_train
-        rounded down to the nearest integer. The default is 1.0.
-    
-    misc_flt : function, optional
-        Default general criteria for including trials in analysis. Should be a 
-        boolean function taking a row (observation) of a data table as input and 
-        return True if and only if corresponding row is to be included in analysis.
-        
-        Otherwise, the default is lambda x:True, resulting in all trials being
-        included in analysis. 
-    
-    balance_groups : bool, optional
-        Whether to balance trial counts between groups by default. The default is True.
-        
-    clf_type : 'svm' | 'corr'
-        Default classifier type. Currently supports 'svm' (linear SVM) and 'corr' 
-        (correlation classifier).
-        
-    penalty : 'l1' | 'l2'
-        Default norm used to evaluate penalty on weights in SVM classifier. Only used if 
-        `clf_type` is 'svm'.
-        
-    dual : True | False | 'auto'
-        Whether to fit linear SVM using primal or dual optimization problem by 
-        default. If 'auto', chooses between True and False automatically based 
-        on number of features and observations. Only used if `clf_type` is 'svm'.
-
-    loss : 'hinge '| 'squared_hinge' 
-        Default loss function to use in fitting linear SVM. Only used if `clf_type` 
-        is 'svm'.
-        
-    max_iter : float
-        Default maximmum number of iterations to run in fitting linear SVM. Only 
-        used if `clf_type` is 'svm'.
-
-    C : float
-        Default regularization strength. Only used if `clf_type` is 'svm'.
-
-    corr_metric : 'pearsonr'
-        Default similarity metric to use in correlation classifier. Only used if 
-        `clf_type` is 'corr'. 
-        
-
-    Returns
-    -------
-    hparams_df : pandas.core.frame.DataFrame
-        Dataframe of classifier analysis hyperparameters. Each row corresponds 
-        to a single set of hyperparameters, i.e., a single dict in `hparams`
-        input list. Columns correspond to all other input parameters.
-
-    """
-    
-    # Initialize dict of defaults:
-    defaults = {
-        
-        # General parameters:
-        'task_defs' : task_defs,
-        'n_files' : n_files,
-        'xor' : xor,
-        'n_geo_subsamples' : n_geo_subsamples,
-        'zscore_data' : zscore_data,
-        'save_perf' : save_perf,
-        'sum_inpt' : sum_inpt,
-        'chunked_reconstruction_loss' : chunked_reconstruction_loss,
-        'save_learning' : save_learning,
-        'gpu' : gpu,
-        'save_sessions' : save_sessions,
-        'verbose' : verbose,
-            
-        # Whisker simulation parameters:
-        'concavity' : concavity,
-        'n_whisk' : n_whisk, 
-        'prob_poiss' : prob_poiss,
-        'noise_w' : noise_w,
-        'spread' : spread,
-        'speed' : speed,
-        'ini_phase_m' : ini_phase_m,
-        'ini_phase_spr' : ini_phase_spr, 
-        'delay_time' : delay_time, 
-        'freq_m' : freq_m, 
-        'freq_std' : freq_std, 
-        'std_reset' : std_reset,
-        't_total' : t_total,
-        'dt' : dt,
-        'dx' : dx,
-        'freq_sh' : freq_sh,
-        'amp' : amp,
-        'z1' : z1,
-        'max_rad' : max_rad,
-        'inir_position' : init_position,
-        'n_rad' : n_rad,
-        'disp' : disp,
-        'theta' : theta,
-        'steps_mov' : steps_mov,
-        'rad_vec' : rad_vec,
-        'init_position' : init_position,
-        'n_trials_pre' : n_trials_pre,
-        
-        # Model parameters:
-        'mdl_type' : mdl_type,
-        'n_hidden' : n_hidden,
-        'sig_init' : sig_init,
-        'sig_neu' : sig_neu,
-        'lr' : lr,
-        'beta0' : beta0,
-        'beta1' : beta1,
-        'beta_rec' : beta_rec,
-        'beta_xor' : beta_xor,
-        'beta_sp' : beta_sp,
-        'beta_pr' : beta_pr,
-        'n_epochs' : n_epochs, 
-        'batch_size' : batch_size,
-        'p_norm' : p_norm,
-        'n_splits' : n_splits,
-        'n_predictor_bins' : n_predictor_bins,
-        'n_predicted_bins' : n_predicted_bins,
-        'n_offsets' : n_offsets
-        }
-
-    # Set defaults if necessary:
-    if hparams is None:
-        hparams = [defaults]
-
-    # Do some input validation:
-    if task_defs is None and (hparams is None or not np.all(['task_defs' in x for x in hparams])):
-        raise ValueError('Not all requested hyperparameter sets include task \
-                         definitions; please specify default using `task_def` \
-                             keyword parameter to `generate_hparams_df` function.')
-        
-    # Initialize dataframe:
+    # Define columns:
     cols = defaults.keys()
-    hparams_df = pd.DataFrame(columns=cols, index=np.arange(len(hparams)))
+    
+    # Initialize dataframe:
+    hparams_df = pd.DataFrame(columns=cols, index=np.arange(len(hparams_manual)))
     
     # Iterate over list of hyperparameters:
-    for h, hdict in enumerate(hparams):
+    for h, hdict in enumerate(hparams_manual):
         
         # Add defined fields for current hyperparameter set to dataframe:
         curr_defined_fields = set(cols).intersection(set(hdict.keys()))
@@ -295,15 +114,12 @@ def generate_hparams_df(hparams, task_defs=None, n_files=10, xor=False,
         curr_undefined_fields = set(cols).difference(set(hdict.keys()))
         for u in curr_undefined_fields:
             hparams_df.loc[h, u] = defaults[u]
+            
+    hparams_df['hparams_idx'] = np.arange(hparams_df.shape[0])
     
-    # Generate separate rows for repeats:
-    h_reps = hparams_df.apply(lambda x : pd.concat([pd.DataFrame(x).T]*int(x.n_files), axis=0), axis=1)
-    h_reps = h_reps.apply(lambda x : x.assign(repeat_idx=np.arange(x.shape[0])))
-    h_reps_df = pd.concat(list(h_reps), axis=0).reset_index()
+    return hparams_df
     
-    return h_reps_df
-
-
+    
 
 # Fit the autoencoder. The data needs to be in torch format
 def fit_autoencoder(model,inpt_train,tgt_train, clase_train,inpt_test,clase_test,
@@ -1265,10 +1081,11 @@ def balance_n_task_labels(df):
     
     # Merge trial type indices back to original dataframe:s
     df = pd.merge(df, trial_type_df, on=class_label_cols)
+    df['ct'] = 1
     
     # Count trial types, find min value:
-    ct_df = df[['representation', 'trial_type_idx']].groupby('trial_type_idx').count()
-    min_n = min(ct_df.values)
+    ct_df = df.groupby('trial_type_idx').count()
+    min_n = min(ct_df.ct)
     
     # Sample min_n trials of each trial type and concatenate into dataframe:
     A = [df[df.trial_type_idx==x].sample(min_n) for x in np.unique(df.trial_type_idx)]
