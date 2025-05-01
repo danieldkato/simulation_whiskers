@@ -115,6 +115,17 @@ def generate_hparams_df(defaults, hparams_manual=None):
         for u in curr_undefined_fields:
             hparams_df.loc[h, u] = defaults[u]
             
+            
+    # Expand on repeats if applicable:
+    if 'n_repeats' in hparams_df.columns:
+        L = hparams_df.apply(lambda x : 
+        pd.concat(
+            [pd.DataFrame([x]*x.n_repeats).drop(columns=['n_repeats']).reset_index(), 
+            pd.DataFrame({'repeat_idx':np.arange(x.n_repeats)})], 
+            axis=1), 
+        axis=1)
+        hparams_df = pd.concat(list(L), axis=0)
+            
     hparams_df['hparams_idx'] = np.arange(hparams_df.shape[0])
     
     return hparams_df
