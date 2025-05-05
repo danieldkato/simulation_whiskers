@@ -207,7 +207,11 @@ def fit_autoencoder(model,inpt_train,tgt_train, clase_train,inpt_test,clase_test
     else:
         device = torch.device('cpu')
     
+    print('gpu={}'.format(gpu))
+    print('device={}'.format(device))
+    
     # Convert inputs to tensor:
+    print('type(clase_train)0={}'.format(type(clase_train)))
     inpt_train = Variable(torch.from_numpy(np.array(inpt_train,dtype=np.float32)),requires_grad=False) 
     tgt_train = Variable(torch.from_numpy(np.array(tgt_train,dtype=np.float32)),requires_grad=False) 
     clase_train = Variable(torch.from_numpy(np.array(clase_train,dtype=np.int64)),requires_grad=False) 
@@ -227,6 +231,7 @@ def fit_autoencoder(model,inpt_train,tgt_train, clase_train,inpt_test,clase_test
         inpt_test = inpt_test.to(device)
         clase_test = clase_test.to(device)
     
+    print('type(clase_train)1={}'.format(type(clase_train)))
     train_trial_indices=torch.Tensor(np.arange(len(clase_train)))
     train_loader=DataLoader(torch.utils.data.TensorDataset(inpt_train,tgt_train,train_trial_indices),batch_size=batch_size,shuffle=True)
 
@@ -417,9 +422,15 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
         n_files-by-p array of total loss vs training epoch.
 
     """
-    start_time=datetime.now()
-    n_feat = sim_params['n_whisk']*2
+    start_time=time.time()
+    A = np.random.randn(10,10)
+    B = A.reshape(-1)
+    stop_time = time.time()
+    print('setup_dur = {:.3e}'.format(stop_time - start_time))
     
+    """
+    n_feat = sim_params['n_whisk']*2
+    #print('foo')
     
     # Define task strings:
     task_strs = []
@@ -548,13 +559,13 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
         elif type(sessions_in) == pd.core.frame.DataFrame:
             sim_df = sessions_in
     
-    
+
     # Assign class labels:
     for tidx, task in enumerate(tasks):
         sim_df = assign_class_labels(sim_df, task)
         sim_df = sim_df.rename(columns={'class_label':'task{}_class_label'.format(tidx)})    
     
-
+    
     # Train and test autoencoders:
     print('Fitting autoencoder...')
     n_predictor_feat=sim_df.iloc[0].predictor_features.shape[0]
@@ -595,18 +606,25 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
     stop_fit_ae = time.time()
     print('fit_autoencoder duration={}'.format(stop_fit_ae - start_fit_ae))
     
-    
+
+    start_rename = time.time()
     # Rename some columns:
     if chunked_reconstruction_loss and rec_network_type=='prediction':
         src_cols = [x for x in ae_df.columns if 'loss_rec_chunk' in x]
         for col in src_cols:
             ae_df = ae_df.rename(columns={col:col.replace('chunk', 'bin')})
+    stop_rename = time.time()
+    print('rename duration={}'.format(stop_rename-start_rename))
 
 
     # Split dataframe into separate rows for separate model layers:
+    start_convert = time.time()
     representation_df = layer_cols2rows(ae_df)
+    stop_convert = time.time()
+    print('layer_cols2rows duration={}'.format(stop_convert-start_convert))
     
     # Do some filtering based on whether saving learning or not:
+    eliminate_rows_start = time.time()
     if not save_learning:
         representation_df = representation_df[np.array(representation_df.epoch==0) | np.array(representation_df.epoch==n_epochs-1)]
         learning_inds = np.array(ae_df.epoch!=0) & np.array(ae_df.epoch!=n_epochs-1)
@@ -616,14 +634,18 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
         ae_df.loc[learning_inds, 'hidden_test'] = None
         ae_df.loc[learning_inds, 'rec_train'] = None
         ae_df.loc[learning_inds, 'rec_test'] = None
+    eliminate_rows_stop = time.time()
+    print('eliminate learning rows duration={}'.format(eliminate_rows_stop-eliminate_rows_start))
     
     # Exclude rows corresponding to input @ epoch > 0, reconstruction @ epoch < last:
+    start_select_epochs = time.time()
     L = representation_df[['layer', 'epoch']].drop_duplicates()       
     exclude_rows = L.apply(lambda x : (x.layer=='inpt' and x.epoch!=0) or (x.layer=='rec' and x.epoch!=n_epochs-1), axis=1) # < Exclude some unneeded rows
     L = L[~exclude_rows]    
     L.index = np.arange(L.shape[0])
     representation_df = pd.merge(representation_df, L, on=['layer', 'epoch'], how='inner')
-    
+    stop_select_epochs = time.time()
+    print('eliminate init/final rows duration={}'.format(stop_select_epochs-start_select_epochs))
 
     # Do some preprocessing for specifically for input representations:  
     # Eliminate input representations for all but first epoch; won't change over course of training
@@ -635,14 +657,24 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
 
 
     # Compute geometry metrics over layers and epochs:
+    print('representation_df.shape={}'.format(representation_df.shape))
+    print('representation_df.iloc[-1].test.shape={}'.format(representation_df.iloc[-1].test.shape))    
+    start_geometry = time.time()
     for cidx, col in enumerate(class_label_cols):
         representation_df[col] = [clase_test[:,cidx]]*representation_df.shape[0]
-    R = representation_df.apply(lambda x : analyze_representations(x, geo_reg, mlp_params), axis=1)
+    print('representation_df.iloc[-1].task0_class_label.shape={}'.format(representation_df.iloc[-1].task0_class_label.shape))    
+    R = []
+    for idx, row in representation_df.iterrows():
+        R.append(analyze_representations(row, geo_reg, mlp_params))
+    #R = representation_df.apply(lambda x : analyze_representations(x, geo_reg, mlp_params), axis=1)
     perf_df = pd.concat([x[0] for x in R], axis=0)
     geo_df = pd.concat([x[1] for x in R])
+    stop_geometry = time.time()
+    print('geometry duration={}'.format(stop_geometry-start_geometry))
 
         
     # Add some general hyperparameters:
+    start_bookkeeping = time.time()
     dfs = [ae_df, perf_df, geo_df]
     if autoencoder_params is not None:
         
@@ -679,18 +711,25 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
     results['train_sessions'] = sim_df[sim_df.split=='train']
     results['test_sessions'] = sim_df[sim_df.split=='test']
     results['mdl'] = model
+    stop_bookkeeping = time.time()
+    print('Bookkeeping duration = {}'.format(stop_bookkeeping - start_bookkeeping))
+    
     
     end_time=datetime.now()
     duration = end_time - start_time
+    #"""
     
-    return results
+    return 'results'
 
 
 
 def analyze_representations(row, geo_reg, mlp_params=None):
     
     # Initialize dataframe of representations and labels:
+    start_ar = time.time()
     curr_rep_df = pd.DataFrame()
+    types = [type(row[x]) for x in row.keys()]
+    print('row val types ={}'.format(types))
     curr_rep_df['representation'] = list(row.test)
     class_label_cols = [x for x in row.keys()if re.search('task\d+_class_label', x) is not None]
     curr_rep_df[class_label_cols] = row[class_label_cols]
@@ -701,7 +740,11 @@ def analyze_representations(row, geo_reg, mlp_params=None):
     curr_clase_test = np.array(curr_rep_df[class_label_cols])
     
     # Compute overall classifier performance and geometry: 
+    start_geo_2D = time.time()
+    print('sys.getsizeof(curr_rep_ar)={}'.format(sys.getsizeof(curr_rep_ar)))
     curr_geo_df = geometry_2D(curr_rep_ar, curr_clase_test, geo_reg)
+    stop_geo_2D = time.time()
+    print('geometry_2D() duration={}'.format(stop_geo_2D - start_geo_2D))
     curr_perf_df = perf_2D(curr_rep_ar, curr_clase_test)
     if mlp_params is not None:
         mlp_df = perf_2D(curr_rep_ar, curr_clase_test, clf_type='mlp', mlp_params=mlp_params)
@@ -713,6 +756,8 @@ def analyze_representations(row, geo_reg, mlp_params=None):
     
     curr_geo_df['layer'] = row.layer
     curr_geo_df['epoch'] = row.epoch
+    stop_ar = time.time()
+    print('ar duration={}'.format(stop_ar - start_ar))
     
     return curr_perf_df, curr_geo_df
 
