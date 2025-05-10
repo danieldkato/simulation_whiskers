@@ -422,13 +422,14 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
         n_files-by-p array of total loss vs training epoch.
 
     """
-    start_time=time.time()
-    A = np.random.randn(10,10)
-    B = A.reshape(-1)
-    stop_time = time.time()
-    print('setup_dur = {:.3e}'.format(stop_time - start_time))
     
-    """
+    start_time=time.time()
+    #A = np.random.randn(10,10)
+    #B = A.reshape(-1)
+    #stop_time = time.time()
+    #print('setup_dur = {:.3e}'.format(stop_time - start_time))
+    
+    #"""
     n_feat = sim_params['n_whisk']*2
     #print('foo')
     
@@ -719,7 +720,7 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
     duration = end_time - start_time
     #"""
     
-    return 'results'
+    return results
 
 
 
