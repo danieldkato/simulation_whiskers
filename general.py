@@ -924,3 +924,13 @@ def unq(s):
     except:
         out = None
     return out
+
+
+
+def simplify_class_def_str(class_def_str):
+    
+    if re.search('functools.partial\(<function matches_template at \w+>, template={.+}\)', class_def_str) is not None:
+        template_indices = re.search('{.+}', class_def_str).span()
+        class_def_str = class_def_str[template_indices[0]:template_indices[1]]        
+
+    return class_def_str
