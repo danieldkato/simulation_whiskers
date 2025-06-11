@@ -716,7 +716,7 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
     print('Bookkeeping duration = {}'.format(stop_bookkeeping - start_bookkeeping))
     
     
-    end_time=datetime.now()
+    end_time=time.time()
     duration = end_time - start_time
     #"""
     
