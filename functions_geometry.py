@@ -308,21 +308,40 @@ def subsample_2d_bin(dicts, k):
 
 def participation_ratio(X):
     
-    # Assume X to be a samples-by-features tensor:
+    # Assume X to be samples-by-features:
     
-    # Center data:    
-    mu = torch.mean(X, axis=0)
-    Mu = mu.repeat(X.shape[0],1)
-    X_ctr = X - Mu
-    
-    # Compute covariance matrix:
-    Cov = torch.matmul(X_ctr.T, X_ctr)
-    
-    # Compute eigenvalues of covariance matrix:
-    eig = torch.linalg.eig(Cov).eigenvalues
-    eig = torch.real(eig)
-    
-    # Compute participation ratio:
-    pr = (torch.sum(eig)**2)/torch.sum(eig**2)
+    if type(X) == torch.Tensor: 
+        
+        # 0-center:
+        mu = torch.mean(X, axis=0)
+        Mu = mu.repeat(X.shape[0],1)
+        X_ctr = X - Mu
+        
+        # Compute covariance matrix:
+        Cov = torch.matmul(X_ctr.T, X_ctr)
+        
+        # Compute eigenvalues of covariance matrix:
+        eig = torch.linalg.eig(Cov).eigenvalues
+        eig = torch.real(eig)
+        
+        # Compute participation ratio:
+        pr = (torch.sum(eig)**2)/torch.sum(eig**2)
+        
+    elif type(X) == np.ndarray:
+
+        # 0-center:
+        mu = np.mean(X, axis=0)
+        Mu = np.matlib.repmat(mu, X.shape[0], 1)   
+        X_ctr = X - Mu    
+        
+        # Compute covariance matrix:
+        Cov = np.matmul(X_ctr.T, X_ctr)        
+        
+        # Compute eigenvalues of covariance matrix:
+        eig = np.linalg.eig(Cov).eigenvalues
+        eig = np.real(eig)
+        
+        # Compute participation ratio:
+        pr = (np.sum(eig)**2)/np.sum(eig**2)
     
     return pr
