@@ -540,7 +540,6 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
         # Split simulated whisker data into predicted and predictor features:
         if rec_network_type=='autoencoder':
             sim_df = sim_df.rename(columns={'features':'predictor_features'})
-            sim_df['predicted_features'] = sim_df['predictor_features']
             
         elif rec_network_type=='prediction':        
             if n_offsets is None:
@@ -559,7 +558,9 @@ def mdl_geometry_pipeline(sim_params, tasks, autoencoder_params=None, mlp_params
         # If sessions_in is a dataframe:
         elif type(sessions_in) == pd.core.frame.DataFrame:
             sim_df = sessions_in
-    
+
+    if rec_network_type=='autoencoder':
+        sim_df['predicted_features'] = sim_df['predictor_features']
 
     # Assign class labels:
     for tidx, task in enumerate(tasks):
